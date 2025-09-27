@@ -6,8 +6,6 @@ pub struct Gf256 {
     log: Vec<i16>,
 }
 
-unsafe impl Sync for Gf256 {}
-
 impl Gf256 {
     pub fn new() -> Self {
         let mut exp = vec![0u8; 512];
