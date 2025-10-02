@@ -2,8 +2,8 @@ use anyhow::{Result, anyhow};
 
 #[derive(Debug, Clone)]
 pub struct Gf256 {
-    exp: Vec<u8>,
-    log: Vec<i16>,
+    pub exp: Vec<u8>,
+    pub log: Vec<i16>,
 }
 
 impl Gf256 {
@@ -24,6 +24,21 @@ impl Gf256 {
             exp[i] = exp[i - 255];
         }
         Gf256 { exp, log }
+    }
+
+    pub fn mul_table(&self, factor: u8) -> [u8; 256] {
+        let mut table = [0u8; 256];
+        if factor == 0 {
+            return table;
+        }
+        let log_factor = self.log[factor as usize] as i32;
+        for i in 0..=255 {
+            if i > 0 {
+                let log_i = self.log[i as usize] as i32;
+                table[i as usize] = self.exp[(log_i + log_factor) as usize];
+            }
+        }
+        table
     }
 
     #[inline]

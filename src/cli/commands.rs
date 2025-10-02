@@ -6,7 +6,7 @@ use std::path::PathBuf;
     author,
     version,
     about,
-    long_about = "Litiaina Reed Solomon Erasure GF(2^&)"
+    long_about = "Litiaina Reed Solomon Erasure GF(2^8)"
 )]
 pub struct Cli {
     #[command(subcommand)]

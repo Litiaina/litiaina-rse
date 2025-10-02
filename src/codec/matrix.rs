@@ -1,7 +1,26 @@
-use crate::gf::gf256::Gf256;
-use anyhow::{Result, anyhow};
+use crate::algorithm::gf256::Gf256;
+use anyhow::{anyhow, Result};
 
-pub fn invert_matrix(gf: &Gf256, mat: &[Vec<u8>]) -> Result<Vec<Vec<u8>>> {
+pub type Matrix = Vec<Vec<u8>>;
+
+pub fn mul_vec_matrix(gf: &Gf256, vec: &[u8], mat: &Matrix) -> Vec<u8> {
+    let k = mat.len();
+    assert_ne!(k, 0, "Matrix cannot be empty");
+    let cols = mat[0].len();
+    assert_eq!(vec.len(), k, "Vector length must match matrix rows");
+
+    let mut result = vec![0u8; cols];
+    for j in 0..cols {
+        let mut sum = 0;
+        for (i, &v_val) in vec.iter().enumerate() {
+            sum ^= gf.mul(v_val, mat[i][j]);
+        }
+        result[j] = sum;
+    }
+    result
+}
+
+pub fn invert_matrix(gf: &Gf256, mat: &[Vec<u8>]) -> Result<Matrix> {
     let n = mat.len();
     if n == 0 || mat.iter().any(|r| r.len() != n) {
         return Err(anyhow!("Matrix must be square"));
@@ -46,17 +65,13 @@ pub fn invert_matrix(gf: &Gf256, mat: &[Vec<u8>]) -> Result<Vec<Vec<u8>>> {
     Ok(inv)
 }
 
-pub fn build_vandermonde(k: usize, m: usize) -> Vec<Vec<u8>> {
+pub fn build_vandermonde(gf: &Gf256, k: usize, m: usize) -> Matrix {
     let mut matrix = vec![vec![0u8; k]; m];
-    let gf = Gf256::new();
     for r in 0..m {
         for c in 0..k {
-            let mut val = 1;
-            let x = (r + 1) as u8;
-            for _ in 0..c {
-                val = gf.mul(val, x);
-            }
-            matrix[r][c] = val;
+            // Using (r + k) as x value to ensure it's not 0 or 1,
+            // which can create degenerate matrices for some k,m values.
+            matrix[r][c] = gf.exp[((r + k) as i32 * c as i32 % 255) as usize];
         }
     }
     matrix

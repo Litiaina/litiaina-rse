@@ -1,4 +1,4 @@
-//! # Litiaina Reed Solomon Erasure GF(2^&)
+//! # Litiaina Reed Solomon Erasure GF(2^8)
 //!
 //! ## Usage
 //!
@@ -10,40 +10,38 @@
 //!
 //! ### Reconstructing a file
 //!
+//! After removing a few shards from `shards_out`...
 //! ```bash
 //! RUST_LOG=info cargo run --release -- decode --input shards_out --output recovered_file.bin
 //! ```
 
+mod codec;
 mod cli;
-mod gf;
+mod algorithm;
 mod io;
-mod rs;
 
+use crate::{
+    cli::commands::{Cli, Commands},
+    io::{decoding::handle_decode, encoding::handle_encode},
+};
 use anyhow::Result;
 use clap::Parser;
-use std::sync::Arc;
 use std::time::Instant;
 use tracing::{Level, error, info};
 use tracing_subscriber::FmtSubscriber;
 
-use crate::{
-    cli::commands::{Cli, Commands},
-    gf::gf256::Gf256,
-    io::{decoding::handle_decode, encoding::handle_encode},
-};
-
 #[cfg(test)]
 mod tests {
     use crate::{
-        gf::gf256::Gf256,
-        rs::{
+        algorithm::gf256::Gf256,
+        codec::{
             encode_shards::shard_encoding,
             matrix::{build_vandermonde, invert_matrix},
-            reconstruct_shards::shard_reconstruction,
+            reconstruct_shards::Codec,
         },
     };
-
-    use super::*;
+    use anyhow::Result;
+    use indicatif::ProgressBar;
 
     #[test]
     fn test_encode_decode_roundtrip() -> Result<()> {
@@ -60,7 +58,8 @@ mod tests {
             })
             .collect();
 
-        let parities = shard_encoding(&gf, &build_vandermonde(k, m), &data_shards)?;
+        let pb = ProgressBar::new(m as u64);
+        let parities = shard_encoding(&gf, &build_vandermonde(&gf, k, m), &data_shards, &pb)?;
         assert_eq!(parities.len(), m);
 
         let n = k + m;
@@ -77,7 +76,8 @@ mod tests {
         shards_opt[k] = None;
         shards_opt[k + 2] = None;
 
-        shard_reconstruction(&gf, k, m, &mut shards_opt)?;
+        let codec = Codec::new(k, m);
+        codec.reconstruct(&mut shards_opt)?;
 
         for i in 0..k {
             let original = &data_shards[i];
@@ -110,13 +110,11 @@ async fn main() -> Result<()> {
 
     let cli = Cli::parse();
 
-    let gf = Arc::new(Gf256::new());
-
     let start_time = Instant::now();
 
     let result = match cli.command {
-        Commands::Encode { .. } => handle_encode(gf.clone(), cli.command).await,
-        Commands::Decode { .. } => handle_decode(gf.clone(), cli.command).await,
+        Commands::Encode { .. } => handle_encode(cli.command).await,
+        Commands::Decode { .. } => handle_decode(cli.command).await,
     };
 
     if let Err(e) = &result {
