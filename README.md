@@ -1,6 +1,8 @@
-# Litiaina Reed Solomon Erasure GF(2^8)
+# Litiaina Reed-Solomon Erasure Coding GF(2^8)
 
-A educational and experimental Reed-Solomon erasure coding implementation, not production storage software.
+An educational and experimental Reed-Solomon erasure coding implementation over GF(2^8), intended for learning, testing, and storage-system research.
+
+This project is not presented as production-ready storage software.
 
 ## Usage
 
